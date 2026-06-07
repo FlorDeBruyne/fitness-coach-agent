@@ -8,7 +8,7 @@ load_dotenv()
 async def get_coaching_response(message: str, client: AsyncOpenAI):
     response = await client.chat.completions.create(
         model=os.getenv("MODEL"),
-        messages=[{"role":"system", "content":"Je bent een fitness coach. Ik heb 5 uur geslapen en mijn HRV is laag. Wat raad je aan?"},
+        messages=[{"role":"system", "content":"Je bent een fitness coach."},
                   {"role": "user", "content": message}]
     )
     return response.choices[0].message.content

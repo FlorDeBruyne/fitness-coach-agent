@@ -9,5 +9,6 @@ COPY src/ /app/src
 COPY scripts /app/scripts
 
 RUN chmod +x /app/scripts/start/app.sh
+RUN chmod +x /app/scripts/start/telegram_bot.sh
 
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
