@@ -44,4 +44,4 @@ if __name__ == "__main__":
     caps_handler = CommandHandler('caps', caps)
     application.add_handler(caps_handler)
 
-    application.run_polling()
+    application.run_polling(drop_pending_updates=True)
