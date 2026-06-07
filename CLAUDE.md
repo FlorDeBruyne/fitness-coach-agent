@@ -118,4 +118,4 @@ GitHub Actions builds Docker images on push to main:
 - AI model: Ollama local (later Claude API)
 - Messaging: Telegram Bot
 - Vector DB: pgvector (planned)
-- Backend: Python FastAPI
+- Backend: Python FastAPI 
