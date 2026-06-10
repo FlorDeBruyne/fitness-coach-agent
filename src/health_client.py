@@ -65,17 +65,65 @@ async def get_morning_context() -> dict:
 
 async def get_evening_context() -> dict:
     activity_data = await get_activity(days_back=1)
-    workout_data = await get_workouts(days_back=1)
+    workout_data = await get_workouts(days_back=2)
 
     activity = activity_data.get("data", [])
+    workout = workout_data.get("data", [])
 
     latest_activity = activity[-1] if activity else {}
 
+    workouts = [
+        {
+            "type": w.get("type"),
+            "start_time": w.get("start_time"),
+            "end_time": w.get("end_time"),
+            "duration_seconds": w.get("duration_seconds"),
+            "distance_meters": w.get("distance_meters"),
+            "calories_kcal": w.get("calories_kcal"),
+            "avg_heart_rate_bpm": w.get("avg_heart_rate_bpm"),
+            "max_heart_rate_bpm": w.get("max_heart_rate_bpm"),
+            "avg_pace_sec_per_km": w.get("avg_pace_sec_per_km"),
+            "elevation_gain_meters": w.get("elevation_gain_meters")
+        }
+        for w in workout
+    ]
 
     return {
-        "activity": activity,
-        "latest_activity": activity_data,
-        # "workout_data": workout_data
+        "activity": {
+            "steps": latest_activity.get("steps"),
+            "distance_meters": latest_activity.get("distance_meters"),
+            "floors_climbed": latest_activity.get("floors_climbed"),
+            "elevation_meters": latest_activity.get("elevation_meters"),
+            "active_calories_kcal": latest_activity.get("active_calories_kcal"),
+            "total_calories_kcal": latest_activity.get("total_calories_kcal"),
+            "active_minutes": latest_activity.get("active_minutes"),
+            "sedentary_minutes": latest_activity.get("sedentary_minutes"),
+            "intensity_minutes": latest_activity.get("intensity_minutes"),
+            "heart_rate": latest_activity.get("heart_rate")
+        },
+        "workouts": workouts
+    }
+
+async def get_workout_context() -> dict:
+    workout_data = await get_workouts(days_back=1)
+    workout = workout_data.get("data", [])
+
+    return {
+        "workouts": [
+            {
+                "type": w.get("type"),
+                "start_time": w.get("start_time"),
+                "end_time": w.get("end_time"),
+                "duration_seconds": w.get("duration_seconds"),
+                "distance_meters": w.get("distance_meters"),
+                "calories_kcal": w.get("calories_kcal"),
+                "avg_heart_rate_bpm": w.get("avg_heart_rate_bpm"),
+                "max_heart_rate_bpm": w.get("max_heart_rate_bpm"),
+                "avg_pace_sec_per_km": w.get("avg_pace_sec_per_km"),
+                "elevation_gain_meters": w.get("elevation_gain_meters")
+            }
+            for w in workout
+        ]
     }
 
 async def get_recovery(days_back: int = 1) -> dict:
@@ -118,7 +166,3 @@ async def get_activity(days_back: int = 1) -> dict:
             params={"start_date": start, "end_date": end}
         )
         return response.json()
-
-if __name__ == "__main__":
-    result = asyncio.run(get_evening_context())
-    print(result, "\n\n\n\n\n")
