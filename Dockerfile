@@ -1,15 +1,18 @@
 FROM python:3.12-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY prompts/ app/prompts
-COPY src/ /app/src
-COPY scripts /app/scripts
+COPY . .
 
-RUN chmod +x /app/scripts/start/app.sh
-RUN chmod +x /app/scripts/start/telegram_bot.sh
+RUN chmod +x /app/scripts/start/app.sh /app/scripts/start/telegram_bot.sh
+
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
