@@ -14,8 +14,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id,
                                    text=f"Hello I'm your fitness coach")
 
-# async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 async def caps(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text_caps = ' '.join(context.args).upper()
@@ -25,11 +25,11 @@ async def send_message_to_coach(update: Update, context: ContextTypes.DEFAULT_TY
     coach_result = await llm_client.main(message=update.message.text)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=coach_result)
 
-#
-# async def main():
-#     bot = telegram.Bot(token=str(os.getenv("TELEGRAM_ACCESS_TOKEN")))
-#     async with bot:
-#         await bot.send_message(text='', chat_id=str(os.getenv("TELEGRAM_CHAT_ID")))
+
+async def send_message(message: str):
+    bot = telegram.Bot(token=str(os.getenv("TELEGRAM_ACCESS_TOKEN")))
+    async with bot:
+        await bot.send_message(text=message, chat_id=str(os.getenv("TELEGRAM_CHAT_ID")))
 
 
 if __name__ == "__main__":
