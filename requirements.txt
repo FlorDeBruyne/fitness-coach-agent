@@ -5,3 +5,7 @@ python-dotenv
 python-telegram-bot
 httpx
 pyyaml
+alembic
+sqlalchemy
+asyncpg
+psycopg2-binary
