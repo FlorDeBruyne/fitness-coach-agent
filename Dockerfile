@@ -5,6 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
+COPY prompts/ app/prompts
 COPY src/ /app/src
 COPY scripts /app/scripts
 
