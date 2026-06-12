@@ -1,3 +1,4 @@
+import json
 import asyncio
 from health_client import get_morning_context, get_evening_context, get_workout_context
 from llm_client import main
@@ -10,7 +11,13 @@ async def morning_update():
     context = await get_morning_context()
     llm_response = await main(message="Stuur het ochtend bericht op basis van de health context.",
                               context=context)
-    logger.info(llm_response)
+
+    if context:
+        print(context)
+        logger.info(context)
+        context_str = json.dumps(context, indent=2)
+        await send_message(context_str)
+
     await send_message(llm_response)
 
 
