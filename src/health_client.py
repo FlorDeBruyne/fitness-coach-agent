@@ -62,10 +62,9 @@ async def get_sum(days_back: int = 1) -> dict:
 
 async def get_morning_context() -> dict:
     sleep_data = await get_sleep(days_back=1)
-    recovery_data = await get_recovery_score()
+    recovery_data = await get_recovery_score(sleep_data)
 
     sleep = sleep_data.get("data", [])
-
     latest_sleep = sleep[-1] if sleep else {}
 
     return {
@@ -75,8 +74,7 @@ async def get_morning_context() -> dict:
             "time_ib_bed_minutes": latest_sleep.get("time_ib_bed_minutes"),
             "efficiency_percent": latest_sleep.get("efficiency_percent"),
             "stages": latest_sleep.get("stages"),
-            "avg_hrv_sdnn_ms": latest_sleep.get("avg_hrv_sdnn_ms"),
-            "avg_heart_rate_bpm": latest_sleep.get("avg_heart_rate_bpm"),
+            "avg_hrv_sdnn_ms": latest_sleep.get("avg_hrv_sdnn_ms")
         },
         "recovery": {
             "recovery_score": recovery_data.get("recovery_score")
@@ -160,14 +158,13 @@ async def get_timeseries(days_back: int = 1, types: HealthMetricType = "resting_
         return response.json().get("data", [])
 
 
-async def get_recovery_score() -> dict:
+async def get_recovery_score(sleep_data_day: dict) -> dict:
     baseline = await get_baseline()
 
     hrv_task = get_timeseries(1, 'heart_rate_variability_sdnn')
     rhr_task = get_timeseries(1, 'resting_heart_rate')
-    sleep_task = get_sleep(1)
 
-    hrv_day, rhr_day, sleep_day = await asyncio.gather(hrv_task, rhr_task, sleep_task)
+    hrv_day, rhr_day = await asyncio.gather(hrv_task, rhr_task)
 
     hrv_values = [item["value"] for item in hrv_day if "value" in item]
     hrv_today = safe_avg(hrv_values)
@@ -177,7 +174,8 @@ async def get_recovery_score() -> dict:
     rhr_today = safe_avg(rhr_values)
     rhr_score = min(( baseline['avg_rhr'] / rhr_today) if rhr_today and baseline['avg_rhr'] else 1.0, 1.0)
 
-    sleep_values = sleep_day.get("data", [])[0]
+    sleep_values = sleep_data_day.get("data", [])
+    sleep_values = sleep_values[0] if sleep_values else []
     duration_minutes = sleep_values.get('duration_minutes', 0)
     duration_score = min(duration_minutes / (8 * 60), 1)
     efficiency_percent = sleep_values.get("efficiency_percent", 0)
