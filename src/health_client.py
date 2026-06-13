@@ -68,9 +68,11 @@ async def get_morning_context() -> dict:
     latest_sleep = sleep[-1] if sleep else {}
 
     return {
+        "scenario": "morning_check_in",
+        "date": datetime.now().strftime("%Y-%m-%d"),
         "sleep": {
             "duration_minutes": latest_sleep.get("duration_minutes"),
-            "duration_hours": latest_sleep.get("duration_minutes") / 60,
+            "duration_hours": round(latest_sleep.get("duration_minutes", 0) / 60, 1),
             "time_ib_bed_minutes": latest_sleep.get("time_ib_bed_minutes"),
             "efficiency_percent": latest_sleep.get("efficiency_percent"),
             "stages": latest_sleep.get("stages"),
