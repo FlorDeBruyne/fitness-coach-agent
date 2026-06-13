@@ -12,12 +12,6 @@ async def morning_update():
     llm_response = await main(message="Stuur het ochtend bericht op basis van de health context.",
                               context=context)
 
-    if context:
-        print(context)
-        logger.info(context)
-        context_str = json.dumps(context, indent=2)
-        await send_message(context_str)
-
     await send_message(llm_response)
 
 
