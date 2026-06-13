@@ -62,27 +62,24 @@ async def get_sum(days_back: int = 1) -> dict:
 
 async def get_morning_context() -> dict:
     sleep_data = await get_sleep(days_back=1)
-    recovery_data = await get_recovery(days_back=1)
+    recovery_data = await get_recovery_score()
 
     sleep = sleep_data.get("data", [])
-    recovery = recovery_data.get("data", [])
 
     latest_sleep = sleep[-1] if sleep else {}
-    latest_recovery = recovery[-1] if recovery else {}
 
     return {
         "sleep": {
             "duration_minutes": latest_sleep.get("duration_minutes"),
             "duration_hours": latest_sleep.get("duration_minutes") / 60,
+            "time_ib_bed_minutes": latest_sleep.get("time_ib_bed_minutes"),
             "efficiency_percent": latest_sleep.get("efficiency_percent"),
             "stages": latest_sleep.get("stages"),
             "avg_hrv_sdnn_ms": latest_sleep.get("avg_hrv_sdnn_ms"),
             "avg_heart_rate_bpm": latest_sleep.get("avg_heart_rate_bpm"),
         },
         "recovery": {
-            "recovery_score": latest_recovery.get("recovery_score"),
-            "resting_heart_rate_bpm": latest_recovery.get("resting_heart_rate_bpm"),
-            "avg_hrv_sdnn_ms": latest_recovery.get("avg_hrv_sdnn_ms"),
+            "recovery_score": recovery_data.get("recovery_score")
         }
     }
 
@@ -152,7 +149,6 @@ async def get_workout_context() -> dict:
 async def get_timeseries(days_back: int = 1, types: HealthMetricType = "resting_heart_rate") -> dict:
     start, end = get_date_range(days_back=days_back)
     async with httpx.AsyncClient() as client:
-
         response = await client.get(
             f"{BASE_URL}/api/v1/users/{USER_ID}/timeseries",
             headers=HEADERS,
@@ -164,16 +160,39 @@ async def get_timeseries(days_back: int = 1, types: HealthMetricType = "resting_
         return response.json().get("data", [])
 
 
-async def get_recovery(days_back: int = 1) -> dict:
-    start, end = get_date_range(days_back)
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f"{BASE_URL}/api/v1/users/{USER_ID}/summaries/recovery",
-            headers=HEADERS,
-            params={"start_date": start, "end_date": end}
-        )
-        return response.json()
+async def get_recovery_score() -> dict:
+    baseline = await get_baseline()
 
+    hrv_task = get_timeseries(1, 'heart_rate_variability_sdnn')
+    rhr_task = get_timeseries(1, 'resting_heart_rate')
+    sleep_task = get_sleep(1)
+
+    hrv_day, rhr_day, sleep_day = await asyncio.gather(hrv_task, rhr_task, sleep_task)
+
+    hrv_values = [item["value"] for item in hrv_day if "value" in item]
+    hrv_today = safe_avg(hrv_values)
+    hrv_score = min((hrv_today / baseline['avg_hrv']) if hrv_today and baseline['avg_hrv'] else 1.0, 1.0)
+
+    rhr_values = [item["value"] for item in rhr_day if "value" in item]
+    rhr_today = safe_avg(rhr_values)
+    rhr_score = min(( baseline['avg_rhr'] / rhr_today) if rhr_today and baseline['avg_rhr'] else 1.0, 1.0)
+
+    sleep_values = sleep_day.get("data", [])[0]
+    duration_minutes = sleep_values.get('duration_minutes', 0)
+    duration_score = min(duration_minutes / (8 * 60), 1)
+    efficiency_percent = sleep_values.get("efficiency_percent", 0)
+    efficiency_score = min(efficiency_percent / 100, 1)
+    sleep_score = (duration_score * 0.6) + (efficiency_score * 0.4)
+
+    recovery_score = ((hrv_score * 0.5) + (rhr_score * 0.3) + (sleep_score * 0.2))* 100
+    recovery_score = max(0.0, min(recovery_score, 100.0))
+
+    return {
+        "hrv_score": hrv_score,
+        "rhr_score": rhr_score,
+        "sleep_score": sleep_score,
+        "recovery_score": recovery_score
+    }
 
 async def get_workouts(days_back: int = 7) -> dict:
     start, end = get_date_range(days_back)
@@ -205,5 +224,53 @@ async def get_activity(days_back: int = 1) -> dict:
         )
         return response.json()
 
+def safe_avg(values: list) -> float| None:
+    return sum(values) / len(values) if values else None
+
+async def get_baseline() -> dict:
+    hrv_task = get_timeseries(14, 'heart_rate_variability_sdnn')
+    rhr_task = get_timeseries(14, 'resting_heart_rate')
+    sleep_task = get_sleep(14)
+
+    heart_rate_variability, resting_heart_rate, sleep = await asyncio.gather(
+        hrv_task, rhr_task, sleep_task
+    )
+
+    hrv_values = [item["value"] for item in heart_rate_variability if "value" in item]
+    rhr_values = [item["value"] for item in resting_heart_rate if "value" in item]
+
+    sleep_logs = sleep.get('data', [])
+
+    sleep_duration = []
+    sleep_efficiency = []
+    awake_duration = []
+    light_duration = []
+    deep_duration = []
+    rem_duration = []
+
+    for log in sleep_logs:
+        sleep_duration.append(log.get('duration_minutes', 0))
+        sleep_efficiency.append(log.get('efficiency_percent', 0))
+
+        stages = log.get('stages', {})
+        awake_duration.append(stages.get('awake_minutes', 0))
+        light_duration.append(stages.get('light_minutes', 0))
+        deep_duration.append(stages.get('deep_minutes', 0))
+        rem_duration.append(stages.get('rem_minutes', 0))
+
+    avg_sleep_duration = safe_avg(sleep_duration)
+
+    return {
+        "avg_hrv": safe_avg(hrv_values),
+        "avg_rhr": safe_avg(rhr_values),
+        "avg_sleep_duration": avg_sleep_duration,
+        "avg_sleep_duration_hours": avg_sleep_duration / 60,
+        "avg_sleep_efficiency": safe_avg(sleep_efficiency),
+        "avg_awake_duration": safe_avg(awake_duration),
+        "avg_light_duration": safe_avg(light_duration),
+        "avg_deep_duration": safe_avg(deep_duration),
+        "avg_rem_duration": safe_avg(rem_duration)
+    }
+
 if __name__ == "__main__":
-    print(asyncio.run(get_timeseries(days_back=1, types='resting_heart_rate')))
+    print(asyncio.run(get_morning_context()))
