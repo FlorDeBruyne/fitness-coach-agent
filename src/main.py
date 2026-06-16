@@ -1,5 +1,5 @@
 import fastapi
-from src.llm_client import main
+from src.coaching.llm import main
 
 app = fastapi.FastAPI()
 
