@@ -7,6 +7,8 @@ from typing import Literal
 
 load_dotenv()
 
+__all__ = ['get_sleep', 'get_sum', 'get_morning_context', 'get_evening_context', 'get_workout_context', 'get_timeseries']
+
 BASE_URL = os.getenv("OPEN_WEARABLES_URL", "http://api.open-wearables.homelab.local:30080")
 API_KEY = os.getenv("OPEN_WEARABLES_API_KEY")
 USER_ID = os.getenv("OPEN_WEARABLES_USER_ID")

@@ -11,6 +11,8 @@ from datetime import datetime, timedelta
 
 load_dotenv()
 
+__all__ = ['get_coaching_response', 'main']
+
 async def get_coaching_response(message: str | None, client: AsyncOpenAI, context: Optional[dict] = None):
 
     with open(file=Path("prompts/fitness_coach_nl.md"), mode="r") as file:

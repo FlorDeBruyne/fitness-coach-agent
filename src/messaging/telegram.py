@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 FIRSTNAME, LASTNAME, FITNESSLEVEL = range(3)
 
+__all__ = ['main', 'send_message']
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id

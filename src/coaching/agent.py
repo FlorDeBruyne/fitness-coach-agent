@@ -6,6 +6,8 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+__all__ = ["morning_update"]
+
 async def morning_update():
     context = await get_morning_context()
     llm_response = await main(message="Stuur het ochtend bericht op basis van de health context.",
