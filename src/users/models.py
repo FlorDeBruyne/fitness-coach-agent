@@ -8,6 +8,12 @@ from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
 
+__all__ = [
+    "User",
+    "Goals",
+    "Injuries",
+]
+
 class Base(DeclarativeBase):
     pass
 
