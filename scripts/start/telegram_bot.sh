@@ -1,2 +1,2 @@
 #!/bin/sh
-exec python3 src/telegram_client.py
+exec python3 src/messaging/telegram.py
