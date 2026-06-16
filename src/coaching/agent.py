@@ -1,7 +1,6 @@
-import json
 import asyncio
-from health_client import get_morning_context, get_evening_context, get_workout_context
-from llm_client import main
+from src.health.client import get_morning_context
+from llm import main
 from telegram_client import send_message
 import logging
 
