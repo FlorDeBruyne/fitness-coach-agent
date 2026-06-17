@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 import logging
 from src.coaching import llm
-from src.users.onboarding import check_onboarding
+from src.users.onboarding import check_onboarding, save_onboarding
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
@@ -62,7 +62,11 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     context.user_data["fitness_level"] = update.message.text
     await context.send_message(chat_id=update.effective_chat.id, text="Dit was de setup dank u!")
-    # SAVE THE USER RESULTS IN THE DATABASE HERE
+    if await save_onboarding({"firstname": context.user_data["firstname"],
+                              "lastname": context.user_data["lastname"],
+                              "fitness_level": context.user_data["fitness_level"]}):
+        logger.info("User %s saved successfully.", user.first_name)
+    logger.warning("Failed to save user %s", user.first_name)
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
