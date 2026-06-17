@@ -6,6 +6,10 @@ import os
 
 from alembic import context
 
+import sys
+sys.path.insert(0, "app")  # container path
+sys.path.insert(0, "src")       # local path
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
@@ -19,7 +23,8 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = None
+from users.models import Base
+target_metadata = Base.metadata
 
 # Override met environment variable als die bestaat
 db_url = os.getenv("DATABASE_URL")

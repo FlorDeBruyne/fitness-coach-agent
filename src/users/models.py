@@ -31,8 +31,6 @@ class User(Base):
     telegram_chat_id: Mapped[int] = mapped_column(BigInteger)
     preferred_language: Mapped[str] = mapped_column(String(10), default="nl")
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Brussels")
-    # preferred_message_time_morning: Mapped[time]
-    # preferred_message_time_evening: Mapped[time]
     onboarding_completed: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)

@@ -1,7 +1,7 @@
 import sqlalchemy
 from typing import Optional
-from models import User
-from crud import get_record_by_user, get_record_by_id, get_record_by_telegram, add_record
+from src.users.models import User
+from src.users.crud import get_record_by_user, get_record_by_id, get_record_by_telegram, add_record
 __all__ = ['check_onboarding']
 
 async def check_onboarding(telegram_chat_id: str | None = None, user_id: str | None = None) -> bool:
