@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 from typing import List
 from typing import Optional
@@ -18,18 +19,18 @@ class Base(DeclarativeBase):
     pass
 
 class User(Base):
-    __tablename__ = "user"
-    id: Mapped[int] = mapped_column(primary_key=True)
+    __tablename__ = "users"
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid.uuid4()))
     firstname: Mapped[str] = mapped_column(String(100))
     lastname: Mapped[str] = mapped_column(String(100))
     gender: Mapped[str] = mapped_column(String(20))
     age: Mapped[int] = mapped_column(Integer)
-    height_cm: Mapped[float | int] = mapped_column(Float)
-    weight_kg: Mapped[float | int] = mapped_column(Float)
+    height_cm: Mapped[float | int] = mapped_column(Float, nullable=True)
+    weight_kg: Mapped[float | int] = mapped_column(Float, nullable=True)
     fitness_level: Mapped[int] = mapped_column(String(50))
     telegram_chat_id: Mapped[int] = mapped_column(BigInteger)
-    preferred_language: Mapped[str] = mapped_column(String(10))
-    timezone: Mapped[str] = mapped_column(String(50))
+    preferred_language: Mapped[str] = mapped_column(String(10), default="nl")
+    timezone: Mapped[str] = mapped_column(String(50), default="Europe/Brussels")
     # preferred_message_time_morning: Mapped[time]
     # preferred_message_time_evening: Mapped[time]
     onboarding_completed: Mapped[bool] = mapped_column(Boolean)
@@ -41,8 +42,8 @@ class User(Base):
 
 class Goals(Base):
     __tablename__ = "goals"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     type: Mapped[str] = mapped_column(String(100))
     description: Mapped[str] = mapped_column(Text)
     target_value: Mapped[float | int] = mapped_column(Float)
@@ -60,8 +61,8 @@ class Goals(Base):
 
 class Injuries(Base):
     __tablename__ = "injuries"
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("user.id"))
+    id: Mapped[str] = mapped_column(primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     description: Mapped[str] = mapped_column(Text)
     affected_area: Mapped[str] = mapped_column(String(100))
     severity: Mapped[str] = mapped_column(String(20))

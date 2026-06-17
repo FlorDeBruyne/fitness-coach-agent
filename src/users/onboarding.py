@@ -6,10 +6,10 @@ __all__ = ['check_onboarding']
 
 async def check_onboarding(telegram_chat_id: str | None = None, user_id: str | None = None) -> bool:
     if telegram_chat_id:
-        user = await get_record_by_telegram(telegram_chat_id)
+        user = await get_record_by_telegram(User, telegram_chat_id)
         return True if user else False
     if user_id:
-        user = await get_record_by_user(user_id)
+        user = await get_record_by_user(User, user_id)
         return True if user else False
     return False
 

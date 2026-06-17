@@ -18,7 +18,7 @@ from telegram.ext import (
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-FIRSTNAME, LASTNAME, FITNESSLEVEL = range(3)
+FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
 
 __all__ = ['main', 'send_message']
 
@@ -45,9 +45,31 @@ async def lastname(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return LASTNAME
 
-async def fitness_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def age(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     context.user_data["lastname"] = update.message.text
+    await update.message.reply_text(
+        "Wat is je leeftijd?"
+    )
+    return AGE
+
+async def gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    context.user_data["age"] = update.message.text
+    reply_keyboard = ['Male', 'Female']
+
+    await update.message.reply_text(
+        "Wat is je gender?",
+        reply_markup=ReplyKeyboardMarkup(
+            reply_keyboard, one_time_keyboard=True, input_field_placeholder="Male or Female?"
+        )
+    )
+    return GENDER
+
+async def fitness_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    context.user_data["gender"] = update.message.text
+
     reply_keyboard = ['Inactive', 'Lightly Active', 'Moderately Active', 'Very Active', 'Athlete']
     await update.message.reply_text(
         "Wat is je huidige fitness level?",
@@ -59,14 +81,22 @@ async def fitness_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return FITNESSLEVEL
 
 async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
     user = update.message.from_user
     context.user_data["fitness_level"] = update.message.text
-    await context.send_message(chat_id=update.effective_chat.id, text="Dit was de setup dank u!")
-    if await save_onboarding({"firstname": context.user_data["firstname"],
-                              "lastname": context.user_data["lastname"],
-                              "fitness_level": context.user_data["fitness_level"]}):
+    await context.bot.send_message(chat_id=chat_id, text="Dit was de setup dank u!")
+    if await save_onboarding({
+        "firstname": context.user_data["firstname"],
+        "lastname": context.user_data["lastname"],
+        "age": context.user_data["age"],
+        "gender": context.user_data["gender"],
+        "fitness_level": context.user_data["fitness_level"],
+        "telegram_chat_id": chat_id,
+        "onboarding_completed": True
+      }):
         logger.info("User %s saved successfully.", user.first_name)
-    logger.warning("Failed to save user %s", user.first_name)
+    else:
+        logger.warning("Failed to save user %s", user.first_name)
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -94,7 +124,9 @@ def main() -> None:
         entry_points=[CommandHandler("start", start)],
         states={
             FIRSTNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, lastname)],
-            LASTNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, fitness_level)],
+            LASTNAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, age)],
+            AGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, gender)],
+            GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, fitness_level)],
             FITNESSLEVEL: [MessageHandler(filters.Regex("(?i)^(Inactive|Lightly active|Moderately Active|Very Active|Athlete)$"),
                                           save_and_complete)]
         },

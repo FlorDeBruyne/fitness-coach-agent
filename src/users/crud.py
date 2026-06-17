@@ -42,19 +42,19 @@ async def add_record(model_class, data: dict) -> bool:
             await session.rollback()
             return False
 
-async def get_record_by_id(model_class, record_id: int) -> Any | None:
+async def get_record_by_id(model_class, record_id: str) -> Any | None:
     """Get a record by its Primary key ID."""
     async with async_session() as session:
         result = await session.execute(select(model_class).where(model_class.id == record_id))
         return result.scalar_one_or_none()
 
-async def get_record_by_user(model_class, user_id: int) -> Any | None:
+async def get_record_by_user(model_class, user_id: str) -> Any | None:
     """Get a record by the user ID."""
     async with async_session() as session:
         result = await session.execute(select(model_class).where(model_class.user_id == user_id))
         return result.scalar_one_or_none()
 
-async def get_record_by_telegram(model_class, telegram_id: int) -> Any | None:
+async def get_record_by_telegram(model_class, telegram_id: str) -> Any | None:
     """Get a record by the user ID."""
     async with async_session() as session:
         result = await session.execute(select(model_class).where(model_class.telegram_chat_id == telegram_id))
