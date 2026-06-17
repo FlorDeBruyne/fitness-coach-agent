@@ -96,7 +96,7 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "age": int(context.user_data["age"]),
         "gender": context.user_data["gender"],
         "fitness_level": context.user_data["fitness_level"],
-        "telegram_chat_id": chat_id,
+        "telegram_chat_id": str(chat_id),
         "onboarding_completed": True
       }):
         logger.info("User %s saved successfully.", user.first_name)
