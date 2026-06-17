@@ -93,7 +93,7 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if await save_onboarding({
         "firstname": context.user_data["firstname"],
         "lastname": context.user_data["lastname"],
-        "age": context.user_data["age"],
+        "age": int(context.user_data["age"]),
         "gender": context.user_data["gender"],
         "fitness_level": context.user_data["fitness_level"],
         "telegram_chat_id": chat_id,
