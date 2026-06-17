@@ -1,8 +1,8 @@
 import os
 from dotenv import load_dotenv
 import logging
-from coaching import llm
-from users.onboarding import check_onboarding, save_onboarding
+from src.coaching import llm
+from src.users.onboarding import check_onboarding, save_onboarding
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
