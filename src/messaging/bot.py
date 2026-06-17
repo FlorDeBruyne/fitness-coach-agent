@@ -48,6 +48,7 @@ async def lastname(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def age(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     context.user_data["lastname"] = update.message.text
+
     await update.message.reply_text(
         "Wat is je leeftijd?"
     )
@@ -56,7 +57,7 @@ async def age(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     context.user_data["age"] = update.message.text
-    reply_keyboard = ['Male', 'Female']
+    reply_keyboard = [['Male', 'Female']]
 
     await update.message.reply_text(
         "Wat is je gender?",
@@ -70,7 +71,11 @@ async def fitness_level(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     context.user_data["gender"] = update.message.text
 
-    reply_keyboard = ['Inactive', 'Lightly Active', 'Moderately Active', 'Very Active', 'Athlete']
+    reply_keyboard = [
+        ['Inactive', 'Lightly Active'],
+        ['Moderately Active', 'Very Active'],
+        ['Athlete']
+    ]
     await update.message.reply_text(
         "Wat is je huidige fitness level?",
         reply_markup=ReplyKeyboardMarkup(
