@@ -37,7 +37,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def lastname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["firstname"] = update.message.text
     user = update.message.from_user
-    logger.info("Hallo %s %s", FIRSTNAME, user.last_name | update.message.text)
+    logger.info("Hallo %s", FIRSTNAME)
     await update.message.reply_text(
         "Okay super, zeg me nu je achternaam.",
         reply_markup=ReplyKeyboardRemove()
