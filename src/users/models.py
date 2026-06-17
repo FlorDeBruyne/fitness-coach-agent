@@ -28,7 +28,7 @@ class User(Base):
     height_cm: Mapped[float | int] = mapped_column(Float, nullable=True)
     weight_kg: Mapped[float | int] = mapped_column(Float, nullable=True)
     fitness_level: Mapped[int] = mapped_column(String(50))
-    telegram_chat_id: Mapped[int] = mapped_column(BigInteger)
+    telegram_chat_id: Mapped[str] = mapped_column(String(100))
     preferred_language: Mapped[str] = mapped_column(String(10), default="nl")
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Brussels")
     onboarding_completed: Mapped[bool] = mapped_column(Boolean)

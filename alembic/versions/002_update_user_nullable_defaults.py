@@ -23,6 +23,10 @@ def upgrade() -> None:
     op.alter_column('users', 'weight_kg', existing_type=sa.Float(), nullable=True)
     op.drop_column('users', 'preferred_message_time_evening')
     op.drop_column('users', 'preferred_message_time_morning')
+    op.alter_column('users', 'telegram_chat_id',
+                    existing_type=sa.BigInteger(),
+                    type_=sa.String(),
+                    nullable=True)
 
 
 def downgrade() -> None:
@@ -36,3 +40,8 @@ def downgrade() -> None:
                                       postgresql.TIME(),
                                       server_default=sa.text("'20:00:00'::time without time zone"),
                                       nullable=True))
+    op.alter_column('users', 'telegram_chat_id',
+                    existing_type=sa.String(),
+                    type_=sa.BigInteger(),
+                    nullable=False,
+                    postgresql_using='telegram_chat_id::bigint')
