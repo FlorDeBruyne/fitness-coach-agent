@@ -24,9 +24,9 @@ async def add_record(model_class, data: dict) -> bool:
     async with async_session() as session:
         try:
             if "created_at" not in data:
-                data["created_at"] = datetime.now(timezone.utc)
+                data["created_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
             if "updated_at" not in data:
-                data["updated_at"] = datetime.now(timezone.utc)
+                data["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
 
             # Initialize model with data
             record = model_class(**data)
