@@ -1,7 +1,7 @@
 import asyncio
 from src.health.client import get_morning_context
 from src.coaching.llm import main
-from src.messaging.telegram import send_message
+from src.messaging.bot import send_message
 import logging
 
 logger = logging.getLogger(__name__)
