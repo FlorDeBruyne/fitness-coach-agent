@@ -27,12 +27,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not await check_onboarding(telegram_chat_id=str(chat_id)):
         await update.message.reply_text(
-            "Hi! Ik ben je fitness coach en zal je helpen met je fitness doelen."
+            "Hi! Ik ben je fitness coach en zal je helpen met je fitness doelen.\n"
             "Stuur /cancel om te stoppen met praten met mij.\n\n"
             "Wat is je voornaam?"
         )
 
         return FIRSTNAME
+    else:
+        await context.bot.send_message(chat_id=update.effective_chat.id, text="The setup is already done")
 
 async def lastname(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["firstname"] = update.message.text
