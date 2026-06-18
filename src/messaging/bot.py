@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
 import logging
-from src.coaching import llm
+from src.coaching.llm import main as llm_main
 from src.users.onboarding import check_onboarding, save_onboarding
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
@@ -107,7 +107,7 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    coach_result = await llm.main(message=update.message.text)
+    coach_result = await llm_main(message=update.message.text)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=coach_result)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
