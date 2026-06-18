@@ -14,18 +14,22 @@ load_dotenv()
 __all__ = ['get_coaching_response', 'main']
 
 async def get_coaching_response(message: str | None, client: AsyncOpenAI, context: Optional[dict] = None):
+    uc = context.get("user_context", {})
 
     with open(file=Path("prompts/fitness_coach_nl.md"), mode="r") as file:
         system_prompt = file.read()
 
     if context:
         context_str = json.dumps(context, indent=2)
+        context_str.replace("[NAAM]", f'{uc.get("first_name", "")} {uc.get("last_name", "")}'.strip())
         message = f"{context_str}\n{message}"
 
     response = await client.chat.completions.create(
-        model=os.getenv("MODEL"),
-        messages=[{"role":"system", "content": system_prompt},
-                  {"role": "user", "content": message}]
+        model=str(os.getenv("MODEL")),
+        messages=[
+            {"role":"system", "content": system_prompt},
+            {"role": "user", "content": message}
+        ]
     )
 
     return response.choices[0].message.content
