@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
 
-__all__ = ['main', 'send_message']
+__all__ = ['main', 'send_proactive_message']
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -120,6 +120,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     return ConversationHandler.END
 
+async def send_proactive_message(text: str):
+    bot = Bot(token=str(os.getenv("TELEGRAM_ACCESS_TOKEN")))
+    async with bot:
+        await bot.send_message(text=text, chat_id=str(os.getenv("TELEGRAM_CHAT_ID")))
 
 def main() -> None:
     """Run the bot."""
