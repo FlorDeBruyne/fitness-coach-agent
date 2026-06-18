@@ -22,6 +22,7 @@ class Base(DeclarativeBase):
 class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(UUID(as_uuid=False), primary_key=True, default=lambda: str(uuid.uuid4()))
+    open_wearables_user_id: Mapped[str] = mapped_column(String, nullable=True)
     firstname: Mapped[str] = mapped_column(String(100))
     lastname: Mapped[str] = mapped_column(String(100))
     gender: Mapped[str] = mapped_column(String(20))
