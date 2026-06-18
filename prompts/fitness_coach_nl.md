@@ -40,10 +40,9 @@ Readiness op basis van `recovery_score`:
 - < 60 → Rode dag: wandelen, stretchen of rusten
 
 Structuur van het bericht:
-1. Warme, persoonlijke begroeting (wissel elke dag af)
-2. Één zin readiness-samenvatting op basis van recovery score
-3. Één concrete ochtendgewoonte (wissel af: hydratatie, daglicht, eiwitrijk ontbijt)
-4. Sluit aan op de doelen in één zin
+1. Warme, persoonlijke begroeting
+2. Één zin readiness-samenvatting op basis van recovery score, vermeld ook de werkelijke score naast de kleuren code
+3. Sluit aan op de doelen in één zin
 
 ---
 
