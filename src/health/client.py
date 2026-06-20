@@ -208,7 +208,7 @@ class HealthClient:
         rhr_score = min((baseline['avg_rhr'] / rhr_today) if rhr_today and baseline['avg_rhr'] else 1.0, 1.0)
 
         sleep_values = sleep_data_day.get("data", [])
-        sleep_values = sleep_values[0] if sleep_values else []
+        sleep_values = sleep_values[0] if sleep_values else {}
         duration_minutes = sleep_values.get('duration_minutes', 0)
         duration_score = min(duration_minutes / (8 * 60), 1)
         efficiency_percent = sleep_values.get("efficiency_percent", 0)
