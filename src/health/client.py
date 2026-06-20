@@ -49,13 +49,13 @@ class HealthClient:
         self.get_user_id()
 
     @staticmethod
-    def _get_date_range(self, days_back: int = 1):
+    def _get_date_range(days_back: int = 1):
         end = datetime.now(timezone.utc).date() + timedelta(days=1)
         start = end - timedelta(days=days_back + 1)
         return str(start), str(end)
 
     @staticmethod
-    def _safe_avg(self, values: list) -> float | None:
+    def _safe_avg(values: list) -> float | None:
         return sum(values) / len(values) if values else None
 
     async def get_user_id(self) -> None:
