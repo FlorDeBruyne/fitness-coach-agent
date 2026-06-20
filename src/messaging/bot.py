@@ -107,7 +107,7 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    coach_result = await llm_main(message=update.message.text)
+    coach_result = await llm_main(message=update.message.text, context=context)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=coach_result)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
