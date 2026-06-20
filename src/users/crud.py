@@ -64,4 +64,4 @@ async def get_get_all_onboarded_users() -> Any | None:
     """Get a record by the user ID."""
     async with async_session() as session:
         result = await session.execute(select(User).where(User.onboarding_completed == True))
-        return result.scalar_one_or_none()
+        return result.scalars().all()
