@@ -16,8 +16,8 @@ async def morning_update():
         health_context = await health_client.get_morning_context()
 
         user_context = {
-            "firstname": user.firstname | health_client.first_name,
-            "lastname": user.lastname | health_client.last_name
+            "firstname": user.firstname or health_client.first_name,
+            "lastname": user.lastname or health_client.last_name
         }
         context = {
             "user_context": user_context,
