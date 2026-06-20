@@ -294,7 +294,7 @@ class HealthClient:
             "avg_hrv": self._safe_avg(hrv_values),
             "avg_rhr": self._safe_avg(rhr_values),
             "avg_sleep_duration": avg_sleep_duration,
-            "avg_sleep_duration_hours": avg_sleep_duration / 60,
+            "avg_sleep_duration_hours": avg_sleep_duration / 60 if avg_sleep_duration else 0.0,
             "avg_sleep_efficiency": self._safe_avg(sleep_efficiency),
             "avg_awake_duration": self._safe_avg(awake_duration),
             "avg_light_duration": self._safe_avg(light_duration),
