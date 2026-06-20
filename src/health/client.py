@@ -42,11 +42,8 @@ HealthMetricType = Literal[
 
 class HealthClient:
 
-    def __init__(self, user_id: Optional[str] = None, firstname: Optional[str] = None, last_name: Optional[str] = None):
+    def __init__(self, user_id: str):
         self.user_id = user_id
-        self.first_name = firstname
-        self.last_name = last_name
-        self.get_user_id()
 
     @staticmethod
     def _get_date_range(days_back: int = 1):
