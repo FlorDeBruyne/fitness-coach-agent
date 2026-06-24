@@ -10,7 +10,7 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['HealthClient']
+__all__ = ['HealthClient', 'get_open_wearables_user_id']
 
 BASE_URL = os.getenv("OPEN_WEARABLES_URL", "http://api.open-wearables.homelab.local:30080")
 API_KEY = os.getenv("OPEN_WEARABLES_API_KEY")
@@ -40,6 +40,23 @@ HealthMetricType = Literal[
     'nike_fuel', 'hydration'
 ]
 
+async def get_open_wearables_user_id(firstname, lastname) -> dict:
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{BASE_URL}/api/v1/users",
+                headers=HEADERS
+            )
+
+            users = response.json().get("items", [])
+            for user in users:
+                if user.get("first_name", "") == firstname and user.get("last_name", "") == lastname:
+                    return user
+
+    except Exception as er:
+        logger.warning(f"Failed to get user_id from {firstname} {lastname}; error: {er}")
+
+
 class HealthClient:
 
     def __init__(self, user_id: str):
@@ -54,20 +71,6 @@ class HealthClient:
     @staticmethod
     def _safe_avg(values: list) -> float | None:
         return sum(values) / len(values) if values else None
-
-    async def get_user_id(self) -> None:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    f"{BASE_URL}/api/v1/users",
-                    headers=HEADERS
-                )
-
-                self.user_id = response.json().get("id") if response.json().get(
-                    "first_name") == self.first_name and response.json().get("last_name") == self.last_name else None
-
-        except Exception as er:
-            logger.warning(f"Failed to get user_id from {self.first_name} {self.last_name}; error: {er}")
 
     async def get_sleep(self, days_back: int = 1) -> dict:
         start, end = self._get_date_range(days_back)
@@ -121,21 +124,7 @@ class HealthClient:
 
         latest_activity = activity[-1] if activity else {}
 
-        workouts = [
-            {
-                "type": w.get("type"),
-                "start_time": w.get("start_time"),
-                "end_time": w.get("end_time"),
-                "duration_seconds": w.get("duration_seconds"),
-                "distance_meters": w.get("distance_meters"),
-                "calories_kcal": w.get("calories_kcal"),
-                "avg_heart_rate_bpm": w.get("avg_heart_rate_bpm"),
-                "max_heart_rate_bpm": w.get("max_heart_rate_bpm"),
-                "avg_pace_sec_per_km": w.get("avg_pace_sec_per_km"),
-                "elevation_gain_meters": w.get("elevation_gain_meters")
-            }
-            for w in workout
-        ]
+        workouts = await self.get_workout_context()
 
         return {
             "activity": {
