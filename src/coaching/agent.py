@@ -4,7 +4,7 @@ from src.health.client import HealthClient, get_open_wearables_user_id
 from src.coaching.llm import main
 from src.messaging.bot import send_proactive_message
 from src.users.crud import get_get_all_onboarded_users
-from users.models import User
+from src.users.models import User
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ async def morning_update():
 async def evening_update():
 
     for user in await get_get_all_onboarded_users():
-        health_client = HealthClient(user.telegram_chat_id)
+        health_client = HealthClient(user.open_wearables_user_id)
         health_context = await health_client.get_evening_context()
 
         user_context = {
