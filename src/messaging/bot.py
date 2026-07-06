@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 import logging
 from src.coaching.llm import main as llm_main
 from src.users.onboarding import check_onboarding, save_onboarding
+from src.users.crud import get_record_by_telegram
+from src.users.models import User
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
@@ -107,8 +109,16 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    coach_result = await llm_main(message=update.message.text)
-    await context.bot.send_message(chat_id=update.effective_chat.id, text=coach_result)
+    try:
+        chat_id = update.effective_chat.id
+        user = await get_record_by_telegram(User, str(chat_id))
+        logger.info("Aquired User: %s", user if user else "None")
+        user_context = {"user_context": {"firstname": user.firstname,
+                                         "lastname": user.lastname}} if user else {}
+        coach_result = await llm_main(message=update.message.text, context=user_context)
+        await context.bot.send_message(chat_id=chat_id, text=coach_result)
+    except Exception as e:
+        logger.error("Failed to send message: %s", e)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""
