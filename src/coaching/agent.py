@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import logging
 from src.health.client import HealthClient, get_open_wearables_user_id
@@ -53,4 +54,7 @@ async def evening_update():
         await send_proactive_message(llm_response)
 
 if __name__ == "__main__":
-    asyncio.run(morning_update())
+    if len(sys.argv) > 1 and sys.argv[1] == "evening":
+        asyncio.run(evening_update())
+    else:
+        asyncio.run(morning_update())
