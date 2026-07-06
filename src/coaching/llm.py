@@ -20,7 +20,7 @@ async def get_coaching_response(message: str | None, client: AsyncOpenAI, contex
     if context:
         uc = context.get("user_context", {})
         context_str = json.dumps(context, indent=2)
-        context_str = context_str.replace("[NAAM]", f'{uc.get("first_name", "")} {uc.get("last_name", "")}'.strip())
+        context_str = context_str.replace("[NAAM]", f'{uc.get("firstname", "")} {uc.get("lastname", "")}'.strip())
         message = f"{context_str}\n{message}"
 
     response = await client.chat.completions.create(
