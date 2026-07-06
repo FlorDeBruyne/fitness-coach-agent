@@ -13,7 +13,7 @@ __all__ = ["morning_update"]
 async def morning_update():
 
     for user in await get_get_all_onboarded_users():
-        open_wearables_id = user.open_wearables_user_id if user.open_wearables_user_id else get_open_wearables_user_id(user.firstname, user.lastname)
+        open_wearables_id = user.open_wearables_user_id if user.open_wearables_user_id else await get_open_wearables_user_id(user.firstname, user.lastname)
         health_client = HealthClient(open_wearables_id)
         health_context = await health_client.get_morning_context()
 
@@ -47,7 +47,7 @@ async def evening_update():
             "health_context": health_context
         }
 
-        llm_response = await main(message="Stuur het ochtend bericht op basis van de user en health context.",
+        llm_response = await main(message="Stuur het avond bericht op basis van de user en health context.",
                                   context=context)
 
         await send_proactive_message(llm_response)
