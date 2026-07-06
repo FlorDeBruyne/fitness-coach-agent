@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-RUN chmod +x /app/scripts/start/app.sh /app/scripts/start/telegram_bot.sh /app/scripts/start/agent.sh
+RUN chmod +x /app/scripts/start/app.sh /app/scripts/start/telegram_bot.sh /app/scripts/start/agent.sh /app/scripts/start/evening_agent.sh
 
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
