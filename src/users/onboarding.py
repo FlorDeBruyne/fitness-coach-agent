@@ -29,5 +29,5 @@ async def save_onboarding(data: dict) -> bool:
         status = await add_record(User, data)
         return True if status else False
     except Exception as e:
-        logger.error(f"Error saving onboarding data: {e}")
+        logger.error(f"Error saving onboarding data: {e}, {data}")
         return False
