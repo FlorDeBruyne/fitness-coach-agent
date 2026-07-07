@@ -16,7 +16,10 @@ BASE_URL = os.getenv("OPEN_WEARABLES_URL", "http://api.open-wearables.homelab.lo
 API_KEY = os.getenv("OPEN_WEARABLES_API_KEY")
 USER_ID = os.getenv("OPEN_WEARABLES_USER_ID")
 
-HEADERS = {"X-Open-Wearables-API-Key": API_KEY}
+HEADERS = {
+    "accept": "application/json",
+    "X-Open-Wearables-API-Key": API_KEY
+}
 
 HealthMetricType = Literal[
     'heart_rate', 'resting_heart_rate', 'heart_rate_variability_sdnn', 'heart_rate_recovery_one_minute',
@@ -55,7 +58,6 @@ async def get_open_wearables_user_id(firstname, lastname) -> dict:
                 if user.get("first_name", "") == firstname and user.get("last_name", "") == lastname:
                     logger.info("Found the correct user")
                     return user
-
     except Exception as er:
         logger.warning(f"Failed to get user_id from {firstname} {lastname}; error: {er}")
 
