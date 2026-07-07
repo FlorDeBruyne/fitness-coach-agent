@@ -23,9 +23,9 @@ async def save_onboarding(data: dict) -> bool:
         logger.info(f"Saving onboarding data: {data}")
         open_wearables_user = await get_open_wearables_user_id(data.get('firstname'), data.get('lastname'))
         logger.info(f"Got the open wearable user: {open_wearables_user}")
-        data.update({
-            'open_wearables_user_id': open_wearables_user.get("id", ""),
-        })
+        # data.update({
+        #     'open_wearables_user_id': open_wearables_user.get("id", ""),
+        # })
         status = await add_record(User, data)
         return True if status else False
     except Exception as e:
