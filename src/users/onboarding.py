@@ -20,6 +20,7 @@ async def check_onboarding(telegram_chat_id: str | None = None, user_id: str | N
 
 async def save_onboarding(data: dict) -> bool:
     try:
+        logger.info(f"Saving onboarding data: {data}")
         open_wearables_user = await get_open_wearables_user_id(data.get('firstname'), data.get('lastname'))
         logger.info(f"Got the open wearable user: {open_wearables_user}")
         data.update({
