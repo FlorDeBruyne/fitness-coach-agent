@@ -49,8 +49,11 @@ async def get_open_wearables_user_id(firstname, lastname) -> dict:
             )
 
             users = response.json().get("items", [])
+            logger.info(f"JSON response of the users get: {users}")
             for user in users:
+                logger.info(f"User found: {user}\n firstname: {user.get('first_name')}\n lastname: {user.get('last_name')} ")
                 if user.get("first_name", "") == firstname and user.get("last_name", "") == lastname:
+                    logger.info("Found the correct user")
                     return user
 
     except Exception as er:
