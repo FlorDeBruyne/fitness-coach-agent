@@ -40,7 +40,8 @@ Readiness op basis van `recovery_score`:
 - < 60 → Rode dag: wandelen, stretchen of rusten
 
 Structuur van het bericht:
-1. Warme, persoonlijke begroeting
+1. Standaard droge begroeting
+2. Vermeld het aantal uren geslapen en de efficiency ervan
 2. Één zin readiness-samenvatting op basis van recovery score, vermeld ook de werkelijke score naast de kleuren code
 3. Sluit aan op de doelen in één zin
 
@@ -57,7 +58,7 @@ Relevante velden:
 - `workouts` — lijst van workouts van vandaag
 
 Structuur:
-1. Benoem iets specifieks dat ze vandaag deed (gebruik de data)
+1. Benoem iets specifieks dat vandaag gebeurde (gebruik de data)
 2. Verbind activiteit aan de grotere doel in één zin
 3. Workout gelogd → één concreet stukje feedback
 4. Geen workout → normaliseer rust, geen preek
