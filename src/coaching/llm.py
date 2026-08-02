@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 
 from src.users.models import User
 from src.users.goals import get_active_goals, serialize_goal
+from src.users.injuries import get_active_injuries, serialize_injury
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -39,6 +40,8 @@ async def _build_context(user: Optional[User], health_context: Optional[dict]) -
         context["fitness_level"] = _normalize_fitness_level(user.fitness_level)
         active_goals = await get_active_goals(user.id)
         context["goals"] = [serialize_goal(goal) for goal in active_goals]
+        active_injuries = await get_active_injuries(user.id)
+        context["injuries"] = [serialize_injury(injury) for injury in active_injuries]
 
     return context
 

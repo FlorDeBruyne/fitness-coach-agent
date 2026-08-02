@@ -3,9 +3,10 @@ from datetime import datetime
 from dotenv import load_dotenv
 import logging
 from src.coaching.llm import main as llm_main
-from src.coaching.extraction import parse_goal_value, parse_goal_intro
+from src.coaching.extraction import parse_goal_value, parse_goal_intro, parse_injury_intro
 from src.users.onboarding import check_onboarding, save_onboarding
 from src.users.goals import save_goal, get_active_goals, complete_goal, GOAL_TYPES
+from src.users.injuries import save_injury, get_active_injuries, resolve_injury, SEVERITY_LEVELS
 from src.users.crud import get_record_by_telegram
 from src.users.models import User
 
@@ -26,6 +27,8 @@ logger = logging.getLogger(__name__)
 FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
 GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_CONFIRM, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE_FALLBACK = range(5, 11)
 COMPLETE_SELECT = 11
+INJURY_INTRO, INJURY_AREA_FALLBACK, INJURY_SEVERITY_FALLBACK, INJURY_STARTED_FALLBACK = range(12, 16)
+RESOLVE_SELECT = 16
 
 __all__ = ['main', 'send_proactive_message']
 
@@ -325,6 +328,179 @@ async def complete_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+def _severity_keyboard() -> list:
+    return [[level] for level in SEVERITY_LEVELS]
+
+async def injuries_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Nieuwe blessure of klacht. Stuur /cancel om te stoppen met praten met mij.\n\n"
+        "Vertel me wat er aan de hand is — welk lichaamsdeel, en sinds wanneer?",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    return INJURY_INTRO
+
+async def _ask_next_injury_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get("injury_affected_area"):
+        await update.message.reply_text(
+            "Welk lichaamsdeel is getroffen?",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return INJURY_AREA_FALLBACK
+
+    if not context.user_data.get("injury_severity"):
+        await update.message.reply_text(
+            "Hoe erg is het?",
+            reply_markup=ReplyKeyboardMarkup(_severity_keyboard(), one_time_keyboard=True)
+        )
+        return INJURY_SEVERITY_FALLBACK
+
+    if "injury_started_at" not in context.user_data:
+        await update.message.reply_text(
+            "Sinds wanneer? (formaat JJJJ-MM-DD), of stuur 'onbekend' als je het niet meer weet.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return INJURY_STARTED_FALLBACK
+
+    return await save_and_complete_injury(update, context)
+
+async def injury_intro_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    context.user_data["injury_description"] = text
+
+    parsed = await parse_injury_intro(text)
+
+    if parsed["affected_area"]:
+        context.user_data["injury_affected_area"] = parsed["affected_area"]
+
+    if parsed["severity"]:
+        context.user_data["injury_severity"] = parsed["severity"]
+
+    if parsed["started_at"]:
+        try:
+            context.user_data["injury_started_at"] = datetime.strptime(parsed["started_at"], "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    return await _ask_next_injury_step(update, context)
+
+async def injury_area_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["injury_affected_area"] = update.message.text.strip()
+    return await _ask_next_injury_step(update, context)
+
+async def injury_severity_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    severity = update.message.text.strip().lower()
+    if severity not in SEVERITY_LEVELS:
+        await update.message.reply_text(
+            "Kies een van de opties hieronder.",
+            reply_markup=ReplyKeyboardMarkup(_severity_keyboard(), one_time_keyboard=True)
+        )
+        return INJURY_SEVERITY_FALLBACK
+
+    context.user_data["injury_severity"] = severity
+    return await _ask_next_injury_step(update, context)
+
+async def injury_started_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    started_text = update.message.text.strip()
+
+    if started_text.lower() == "onbekend":
+        context.user_data["injury_started_at"] = None
+    else:
+        try:
+            context.user_data["injury_started_at"] = datetime.strptime(started_text, "%Y-%m-%d").date()
+        except ValueError:
+            await update.message.reply_text(
+                "Dat was geen geldige datum, probeer opnieuw. (formaat JJJJ-MM-DD, of 'onbekend')"
+            )
+            return INJURY_STARTED_FALLBACK
+
+    return await _ask_next_injury_step(update, context)
+
+async def save_and_complete_injury(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = update.message.from_user
+
+    db_user = await get_record_by_telegram(User, str(chat_id))
+    if not db_user:
+        await update.message.reply_text("Ik kon je gebruikersprofiel niet vinden. Rond eerst /start af.")
+        return ConversationHandler.END
+
+    if await save_injury({
+        "user_id": db_user.id,
+        "affected_area": context.user_data["injury_affected_area"],
+        "description": context.user_data["injury_description"],
+        "severity": context.user_data["injury_severity"],
+        "started_at": context.user_data.get("injury_started_at"),
+    }):
+        await update.message.reply_text("Genoteerd, beterschap!", reply_markup=ReplyKeyboardRemove())
+        logger.info("Injury saved for user %s", user.first_name)
+    else:
+        await update.message.reply_text("Er ging iets mis bij het opslaan.", reply_markup=ReplyKeyboardRemove())
+        logger.warning("Failed to save injury for user %s", user.first_name)
+
+    return ConversationHandler.END
+
+def _build_injury_labels(injuries: list) -> dict:
+    area_counts = {}
+    for injury in injuries:
+        area_counts[injury.affected_area] = area_counts.get(injury.affected_area, 0) + 1
+
+    labels = {}
+    for injury in injuries:
+        if area_counts[injury.affected_area] > 1:
+            label = f"{injury.affected_area} — {injury.severity}"
+        else:
+            label = injury.affected_area
+        labels[label] = injury.id
+    return labels
+
+async def resolve_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    db_user = await get_record_by_telegram(User, str(chat_id))
+    if not db_user:
+        await update.message.reply_text("Ik kon je gebruikersprofiel niet vinden. Rond eerst /start af.")
+        return ConversationHandler.END
+
+    active_injuries = await get_active_injuries(db_user.id)
+    if not active_injuries:
+        await update.message.reply_text("Je hebt geen actieve blessures.")
+        return ConversationHandler.END
+
+    labels = _build_injury_labels(active_injuries)
+    context.user_data["resolve_options"] = labels
+
+    reply_keyboard = [[label] for label in labels.keys()]
+    await update.message.reply_text(
+        "Welke blessure is hersteld? Stuur /cancel om te stoppen.",
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    )
+    return RESOLVE_SELECT
+
+async def resolve_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    label = update.message.text
+    options = context.user_data.get("resolve_options", {})
+    injury_id = options.get(label)
+
+    if not injury_id:
+        reply_keyboard = [[option] for option in options.keys()]
+        await update.message.reply_text(
+            "Kies een van de opties hieronder.",
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        )
+        return RESOLVE_SELECT
+
+    if await resolve_injury(injury_id):
+        await update.message.reply_text(
+            "Goed nieuws! Genoteerd als hersteld.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+    else:
+        await update.message.reply_text(
+            "Er ging iets mis.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+    return ConversationHandler.END
+
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         chat_id = update.effective_chat.id
@@ -390,9 +566,30 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    injuries_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("injuries", injuries_start)],
+        states={
+            INJURY_INTRO: [MessageHandler(filters.TEXT & ~filters.COMMAND, injury_intro_received)],
+            INJURY_AREA_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, injury_area_fallback)],
+            INJURY_SEVERITY_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, injury_severity_fallback)],
+            INJURY_STARTED_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, injury_started_fallback)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    resolve_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("resolve", resolve_start)],
+        states={
+            RESOLVE_SELECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, resolve_select)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     application.add_handler(conv_handler)
     application.add_handler(goals_conv_handler)
     application.add_handler(complete_conv_handler)
+    application.add_handler(injuries_conv_handler)
+    application.add_handler(resolve_conv_handler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_message))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)

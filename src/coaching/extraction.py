@@ -7,11 +7,12 @@ from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
 from src.users.goals import GOAL_TYPES
+from src.users.injuries import SEVERITY_LEVELS
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-__all__ = ['get_structured_response', 'parse_goal_value', 'parse_goal_intro']
+__all__ = ['get_structured_response', 'parse_goal_value', 'parse_goal_intro', 'parse_injury_intro']
 
 async def get_structured_response(prompt_path: str, message: str) -> dict:
     with open(file=Path(prompt_path), mode="r") as file:
@@ -75,4 +76,19 @@ async def parse_goal_intro(text: str) -> dict:
         "deadline": deadline if isinstance(deadline, str) else None,
         "target_value": value,
         "unit": unit
+    }
+
+async def parse_injury_intro(text: str) -> dict:
+    today = datetime.now().date().isoformat()
+    message = f"Vandaag is {today}.\n{text}"
+    data = await get_structured_response("prompts/injury_intro_parser.md", message)
+
+    affected_area = data.get("affected_area")
+    severity = data.get("severity")
+    started_at = data.get("started_at")
+
+    return {
+        "affected_area": str(affected_area).strip() if isinstance(affected_area, str) and affected_area.strip() else None,
+        "severity": severity if severity in SEVERITY_LEVELS else None,
+        "started_at": started_at if isinstance(started_at, str) else None
     }
