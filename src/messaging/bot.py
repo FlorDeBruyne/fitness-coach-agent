@@ -5,7 +5,7 @@ import logging
 from src.coaching.llm import main as llm_main
 from src.coaching.extraction import parse_goal_value, parse_goal_intro
 from src.users.onboarding import check_onboarding, save_onboarding
-from src.users.goals import save_goal, get_active_goals, GOAL_TYPES
+from src.users.goals import save_goal, get_active_goals, complete_goal, GOAL_TYPES
 from src.users.crud import get_record_by_telegram
 from src.users.models import User
 
@@ -25,6 +25,7 @@ logger = logging.getLogger(__name__)
 
 FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
 GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE_FALLBACK = range(5, 10)
+COMPLETE_SELECT = 10
 
 __all__ = ['main', 'send_proactive_message']
 
@@ -237,6 +238,68 @@ async def save_and_complete_goal(update: Update, context: ContextTypes.DEFAULT_T
 
     return ConversationHandler.END
 
+def _build_goal_labels(goals: list) -> dict:
+    type_counts = {}
+    for goal in goals:
+        type_counts[goal.type] = type_counts.get(goal.type, 0) + 1
+
+    labels = {}
+    for goal in goals:
+        if type_counts[goal.type] > 1:
+            label = f"{goal.type} — {goal.target_value:g}{goal.unit or ''}"
+        else:
+            label = goal.type
+        labels[label] = goal.id
+    return labels
+
+async def complete_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    db_user = await get_record_by_telegram(User, str(chat_id))
+    if not db_user:
+        await update.message.reply_text("Ik kon je gebruikersprofiel niet vinden. Rond eerst /start af.")
+        return ConversationHandler.END
+
+    active_goals = await get_active_goals(db_user.id)
+    if not active_goals:
+        await update.message.reply_text("Je hebt geen actieve doelen.")
+        return ConversationHandler.END
+
+    labels = _build_goal_labels(active_goals)
+    context.user_data["complete_options"] = labels
+
+    reply_keyboard = [[label] for label in labels.keys()]
+    await update.message.reply_text(
+        "Welk doel heb je voltooid? Stuur /cancel om te stoppen.",
+        reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+    )
+    return COMPLETE_SELECT
+
+async def complete_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    label = update.message.text
+    options = context.user_data.get("complete_options", {})
+    goal_id = options.get(label)
+
+    if not goal_id:
+        reply_keyboard = [[option] for option in options.keys()]
+        await update.message.reply_text(
+            "Kies een van de opties hieronder.",
+            reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
+        )
+        return COMPLETE_SELECT
+
+    if await complete_goal(goal_id):
+        await update.message.reply_text(
+            "Goed bezig! Dit doel is gemarkeerd als voltooid.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+    else:
+        await update.message.reply_text(
+            "Er ging iets mis bij het voltooien van je doel.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+
+    return ConversationHandler.END
+
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         chat_id = update.effective_chat.id
@@ -310,8 +373,17 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    complete_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("complete", complete_start)],
+        states={
+            COMPLETE_SELECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, complete_select)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     application.add_handler(conv_handler)
     application.add_handler(goals_conv_handler)
+    application.add_handler(complete_conv_handler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_message))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
