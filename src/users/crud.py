@@ -15,7 +15,7 @@ DATABASE_URL = str(os.getenv("DATABASE_URL"))
 engine = create_async_engine(DATABASE_URL, echo=True)
 async_session = async_sessionmaker(engine, expire_on_commit=False)
 
-__all__ = ['add_record', 'get_record_by_id', 'get_record_by_user', 'get_record_by_telegram', 'get_get_all_onboarded_users']
+__all__ = ['add_record', 'get_record_by_id', 'get_record_by_user', 'get_records_by_user', 'get_record_by_telegram', 'get_get_all_onboarded_users', 'update_record']
 
 async def add_record(model_class, data: dict) -> bool:
     """
@@ -54,6 +54,12 @@ async def get_record_by_user(model_class, user_id: str) -> Any | None:
         result = await session.execute(select(model_class).where(model_class.user_id == user_id))
         return result.scalar_one_or_none()
 
+async def get_records_by_user(model_class, user_id: str) -> list[Any]:
+    """Get all records for a user ID."""
+    async with async_session() as session:
+        result = await session.execute(select(model_class).where(model_class.user_id == user_id))
+        return list(result.scalars().all())
+
 async def get_record_by_telegram(model_class, telegram_id: str) -> Any | None:
     """Get a record by the user ID."""
     async with async_session() as session:
@@ -65,3 +71,26 @@ async def get_get_all_onboarded_users() -> Any | None:
     async with async_session() as session:
         result = await session.execute(select(User).where(User.onboarding_completed == True))
         return result.scalars().all()
+
+async def update_record(model_class, record_id: str, data: dict) -> bool:
+    """Update fields on an existing record by its Primary key ID."""
+    async with async_session() as session:
+        try:
+            result = await session.execute(select(model_class).where(model_class.id == record_id))
+            record = result.scalar_one_or_none()
+            if not record:
+                logger.warning(f"No record of type {model_class.__name__} found for id {record_id}")
+                return False
+
+            data["updated_at"] = datetime.now(timezone.utc).replace(tzinfo=None)
+            for key, value in data.items():
+                setattr(record, key, value)
+
+            await session.commit()
+            logger.info(f"Record of type {model_class.__name__} updated.")
+            return True
+
+        except SQLAlchemyError as e:
+            logger.error(f"Database error in {model_class.__name__}: {e}")
+            await session.rollback()
+            return False
