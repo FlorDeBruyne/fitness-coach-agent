@@ -24,8 +24,8 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
-GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE_FALLBACK = range(5, 10)
-COMPLETE_SELECT = 10
+GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_CONFIRM, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE_FALLBACK = range(5, 11)
+COMPLETE_SELECT = 11
 
 __all__ = ['main', 'send_proactive_message']
 
@@ -139,6 +139,15 @@ async def _ask_next_goal_step(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
         return GOAL_DEADLINE_FALLBACK
 
+    if "suggested_target_value" in context.user_data:
+        value = context.user_data["suggested_target_value"]
+        unit = context.user_data["suggested_unit"]
+        await update.message.reply_text(
+            f"Ik vermoed dat je doel {value:g}{unit} is — klopt dat? "
+            "Stuur 'ja' om te bevestigen, of geef de juiste waarde."
+        )
+        return GOAL_TARGET_CONFIRM
+
     await update.message.reply_text(
         "Wat is je targetwaarde? (bv. 25 voor 25 minuten, of 70 voor 70kg)"
     )
@@ -159,7 +168,23 @@ async def goal_intro_received(update: Update, context: ContextTypes.DEFAULT_TYPE
         except ValueError:
             pass
 
+    if parsed["target_value"] is not None and parsed["unit"]:
+        context.user_data["suggested_target_value"] = parsed["target_value"]
+        context.user_data["suggested_unit"] = parsed["unit"]
+
     return await _ask_next_goal_step(update, context)
+
+async def goal_target_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.strip()
+
+    if text.lower() in ("ja", "yes"):
+        context.user_data["goal_target_value"] = context.user_data.pop("suggested_target_value")
+        context.user_data["goal_unit"] = context.user_data.pop("suggested_unit")
+        return await save_and_complete_goal(update, context)
+
+    context.user_data.pop("suggested_target_value", None)
+    context.user_data.pop("suggested_unit", None)
+    return await goal_unit(update, context)
 
 async def goal_type_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     goal_type = update.message.text.strip().lower()
@@ -305,24 +330,7 @@ async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = update.effective_chat.id
         user = await get_record_by_telegram(User, str(chat_id))
         logger.info("Aquired User: %s", user if user else "None")
-        user_context = {}
-        if user:
-            active_goals = await get_active_goals(user.id)
-            user_context = {
-                "user_context": {"firstname": user.firstname, "lastname": user.lastname},
-                "goals": [
-                    {
-                        "type": goal.type,
-                        "description": goal.description,
-                        "target_value": goal.target_value,
-                        "current_value": goal.current_value,
-                        "unit": goal.unit,
-                        "deadline": goal.deadline.isoformat() if goal.deadline else None,
-                    }
-                    for goal in active_goals
-                ],
-            }
-        coach_result = await llm_main(message=update.message.text, context=user_context)
+        coach_result = await llm_main(message=update.message.text, user=user)
         await context.bot.send_message(chat_id=chat_id, text=coach_result)
     except Exception as e:
         logger.error("Failed to send message: %s", e)
@@ -366,6 +374,7 @@ def main() -> None:
         states={
             GOAL_INTRO: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_intro_received)],
             GOAL_TYPE_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_type_fallback)],
+            GOAL_TARGET_CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_target_confirm)],
             GOAL_TARGET_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_unit)],
             GOAL_UNIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_unit_fallback)],
             GOAL_DEADLINE_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_deadline_fallback)],

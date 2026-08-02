@@ -62,7 +62,17 @@ async def parse_goal_intro(text: str) -> dict:
 
     goal_type = data.get("type")
     deadline = data.get("deadline")
+
+    value = data.get("target_value")
+    unit = data.get("unit")
+    value = float(value) if isinstance(value, (int, float)) else None
+    unit = str(unit).strip() if isinstance(unit, str) and unit.strip() else None
+    if value is None or unit is None:
+        value, unit = None, None
+
     return {
         "type": goal_type if goal_type in GOAL_TYPES else None,
-        "deadline": deadline if isinstance(deadline, str) else None
+        "deadline": deadline if isinstance(deadline, str) else None,
+        "target_value": value,
+        "unit": unit
     }

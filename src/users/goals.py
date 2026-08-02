@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 GOAL_TYPES = ['hardlopen', 'kracht', 'cardio', 'gewicht', 'flexibiliteit', 'herstel']
 
-__all__ = ['GOAL_TYPES', 'save_goal', 'get_active_goals', 'complete_goal']
+__all__ = ['GOAL_TYPES', 'save_goal', 'get_active_goals', 'complete_goal', 'serialize_goal']
 
 async def save_goal(data: dict) -> bool:
     try:
@@ -24,6 +24,16 @@ async def save_goal(data: dict) -> bool:
 async def get_active_goals(user_id: str) -> list[Goals]:
     goals = await get_records_by_user(Goals, user_id)
     return [goal for goal in goals if goal.status == "active"]
+
+def serialize_goal(goal: Goals) -> dict:
+    return {
+        "type": goal.type,
+        "description": goal.description,
+        "target_value": goal.target_value,
+        "current_value": goal.current_value,
+        "unit": goal.unit,
+        "deadline": goal.deadline.isoformat() if goal.deadline else None,
+    }
 
 async def complete_goal(goal_id: str) -> bool:
     goal = await get_record_by_id(Goals, goal_id)
