@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 import logging
-from src.coaching.llm import main as llm_main
+from src.coaching.llm import main as llm_main, parse_goal_value
 from src.users.onboarding import check_onboarding, save_onboarding
 from src.users.goals import save_goal, get_active_goals
 from src.users.crud import get_record_by_telegram
@@ -133,7 +133,23 @@ async def goal_target_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return GOAL_TARGET_VALUE
 
 async def goal_unit(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["goal_target_value"] = update.message.text
+    parsed = await parse_goal_value(update.message.text)
+
+    if parsed["value"] is None:
+        await update.message.reply_text(
+            "Dat kon ik niet als getal herkennen, probeer opnieuw. (bv. 25 voor 25 minuten, of 70 voor 70kg)"
+        )
+        return GOAL_TARGET_VALUE
+
+    context.user_data["goal_target_value"] = parsed["value"]
+
+    if parsed["unit"]:
+        context.user_data["goal_unit"] = parsed["unit"]
+        await update.message.reply_text(
+            "Wat is de deadline? (formaat JJJJ-MM-DD), of stuur 'geen' als er geen deadline is."
+        )
+        return GOAL_DEADLINE
+
     await update.message.reply_text(
         "Wat is de eenheid van je doel? (bv. 'min', 'kg', 'reps')"
     )
@@ -156,25 +172,21 @@ async def save_and_complete_goal(update: Update, context: ContextTypes.DEFAULT_T
         await update.message.reply_text("Ik kon je gebruikersprofiel niet vinden. Rond eerst /start af.")
         return ConversationHandler.END
 
-    try:
-        target_value = float(context.user_data["goal_target_value"])
-    except ValueError:
-        await update.message.reply_text("Dat was geen geldig getal, probeer opnieuw met /goals.")
-        return ConversationHandler.END
-
     deadline = None
     if deadline_text.lower() != "geen":
         try:
             deadline = datetime.strptime(deadline_text, "%Y-%m-%d").date()
         except ValueError:
-            await update.message.reply_text("Dat was geen geldige datum, probeer opnieuw met /goals.")
-            return ConversationHandler.END
+            await update.message.reply_text(
+                "Dat was geen geldige datum, probeer opnieuw. (formaat JJJJ-MM-DD, of 'geen')"
+            )
+            return GOAL_DEADLINE
 
     if await save_goal({
         "user_id": db_user.id,
         "type": context.user_data["goal_type"],
         "description": context.user_data["goal_description"],
-        "target_value": target_value,
+        "target_value": context.user_data["goal_target_value"],
         "unit": context.user_data["goal_unit"],
         "deadline": deadline,
     }):
