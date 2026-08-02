@@ -2,9 +2,10 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 import logging
-from src.coaching.llm import main as llm_main, parse_goal_value
+from src.coaching.llm import main as llm_main
+from src.coaching.extraction import parse_goal_value, parse_goal_intro
 from src.users.onboarding import check_onboarding, save_onboarding
-from src.users.goals import save_goal, get_active_goals
+from src.users.goals import save_goal, get_active_goals, GOAL_TYPES
 from src.users.crud import get_record_by_telegram
 from src.users.models import User
 
@@ -23,7 +24,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 FIRSTNAME, LASTNAME, AGE, GENDER, FITNESSLEVEL = range(5)
-GOAL_TYPE, GOAL_DESCRIPTION, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE = range(5, 10)
+GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_VALUE, GOAL_UNIT, GOAL_DEADLINE_FALLBACK = range(5, 10)
 
 __all__ = ['main', 'send_proactive_message']
 
@@ -111,26 +112,81 @@ async def save_and_complete(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.warning("Failed to save user %s", user.first_name)
     return ConversationHandler.END
 
+def _goal_type_keyboard() -> list:
+    return [GOAL_TYPES[i:i + 2] for i in range(0, len(GOAL_TYPES), 2)]
+
 async def goals_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Nieuw doel! Stuur /cancel om te stoppen met praten met mij.\n\n"
-        "Wat voor soort doel is het? (bv. '5K tijd', 'gewicht', 'kracht')"
+        "Vertel me over je doel — wat wil je bereiken en tegen wanneer?",
+        reply_markup=ReplyKeyboardRemove()
     )
-    return GOAL_TYPE
+    return GOAL_INTRO
 
-async def goal_description(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["goal_type"] = update.message.text
-    await update.message.reply_text(
-        "Okay, geef nu een korte beschrijving van je doel."
-    )
-    return GOAL_DESCRIPTION
+async def _ask_next_goal_step(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not context.user_data.get("goal_type"):
+        await update.message.reply_text(
+            "Wat voor soort doel is het?",
+            reply_markup=ReplyKeyboardMarkup(_goal_type_keyboard(), one_time_keyboard=True)
+        )
+        return GOAL_TYPE_FALLBACK
 
-async def goal_target_value(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["goal_description"] = update.message.text
+    if "goal_deadline" not in context.user_data:
+        await update.message.reply_text(
+            "Wat is de deadline? (formaat JJJJ-MM-DD), of stuur 'geen' als er geen deadline is.",
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return GOAL_DEADLINE_FALLBACK
+
     await update.message.reply_text(
         "Wat is je targetwaarde? (bv. 25 voor 25 minuten, of 70 voor 70kg)"
     )
     return GOAL_TARGET_VALUE
+
+async def goal_intro_received(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    context.user_data["goal_description"] = text
+
+    parsed = await parse_goal_intro(text)
+
+    if parsed["type"]:
+        context.user_data["goal_type"] = parsed["type"]
+
+    if parsed["deadline"]:
+        try:
+            context.user_data["goal_deadline"] = datetime.strptime(parsed["deadline"], "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    return await _ask_next_goal_step(update, context)
+
+async def goal_type_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    goal_type = update.message.text.strip().lower()
+    if goal_type not in GOAL_TYPES:
+        await update.message.reply_text(
+            "Kies een van de opties hieronder.",
+            reply_markup=ReplyKeyboardMarkup(_goal_type_keyboard(), one_time_keyboard=True)
+        )
+        return GOAL_TYPE_FALLBACK
+
+    context.user_data["goal_type"] = goal_type
+    return await _ask_next_goal_step(update, context)
+
+async def goal_deadline_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    deadline_text = update.message.text.strip()
+
+    if deadline_text.lower() == "geen":
+        context.user_data["goal_deadline"] = None
+    else:
+        try:
+            context.user_data["goal_deadline"] = datetime.strptime(deadline_text, "%Y-%m-%d").date()
+        except ValueError:
+            await update.message.reply_text(
+                "Dat was geen geldige datum, probeer opnieuw. (formaat JJJJ-MM-DD, of 'geen')"
+            )
+            return GOAL_DEADLINE_FALLBACK
+
+    return await _ask_next_goal_step(update, context)
 
 async def goal_unit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parsed = await parse_goal_value(update.message.text)
@@ -143,44 +199,27 @@ async def goal_unit(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     context.user_data["goal_target_value"] = parsed["value"]
 
-    if parsed["unit"]:
-        context.user_data["goal_unit"] = parsed["unit"]
+    if not parsed["unit"]:
         await update.message.reply_text(
-            "Wat is de deadline? (formaat JJJJ-MM-DD), of stuur 'geen' als er geen deadline is."
+            "Wat is de eenheid van je doel? (bv. 'min', 'kg', 'reps')"
         )
-        return GOAL_DEADLINE
+        return GOAL_UNIT
 
-    await update.message.reply_text(
-        "Wat is de eenheid van je doel? (bv. 'min', 'kg', 'reps')"
-    )
-    return GOAL_UNIT
+    context.user_data["goal_unit"] = parsed["unit"]
+    return await save_and_complete_goal(update, context)
 
-async def goal_deadline(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def goal_unit_fallback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["goal_unit"] = update.message.text
-    await update.message.reply_text(
-        "Wat is de deadline? (formaat JJJJ-MM-DD), of stuur 'geen' als er geen deadline is."
-    )
-    return GOAL_DEADLINE
+    return await save_and_complete_goal(update, context)
 
 async def save_and_complete_goal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = update.message.from_user
-    deadline_text = update.message.text.strip()
 
     db_user = await get_record_by_telegram(User, str(chat_id))
     if not db_user:
         await update.message.reply_text("Ik kon je gebruikersprofiel niet vinden. Rond eerst /start af.")
         return ConversationHandler.END
-
-    deadline = None
-    if deadline_text.lower() != "geen":
-        try:
-            deadline = datetime.strptime(deadline_text, "%Y-%m-%d").date()
-        except ValueError:
-            await update.message.reply_text(
-                "Dat was geen geldige datum, probeer opnieuw. (formaat JJJJ-MM-DD, of 'geen')"
-            )
-            return GOAL_DEADLINE
 
     if await save_goal({
         "user_id": db_user.id,
@@ -188,7 +227,7 @@ async def save_and_complete_goal(update: Update, context: ContextTypes.DEFAULT_T
         "description": context.user_data["goal_description"],
         "target_value": context.user_data["goal_target_value"],
         "unit": context.user_data["goal_unit"],
-        "deadline": deadline,
+        "deadline": context.user_data.get("goal_deadline"),
     }):
         await update.message.reply_text("Dit doel is opgeslagen!")
         logger.info("Goal saved for user %s", user.first_name)
@@ -262,11 +301,11 @@ def main() -> None:
     goals_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("goals", goals_start)],
         states={
-            GOAL_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_description)],
-            GOAL_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_target_value)],
+            GOAL_INTRO: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_intro_received)],
+            GOAL_TYPE_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_type_fallback)],
             GOAL_TARGET_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_unit)],
-            GOAL_UNIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_deadline)],
-            GOAL_DEADLINE: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_and_complete_goal)],
+            GOAL_UNIT: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_unit_fallback)],
+            GOAL_DEADLINE_FALLBACK: [MessageHandler(filters.TEXT & ~filters.COMMAND, goal_deadline_fallback)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

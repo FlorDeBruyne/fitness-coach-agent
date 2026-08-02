@@ -6,7 +6,9 @@ from src.users.crud import add_record, get_record_by_id, get_records_by_user, up
 
 logger = logging.getLogger(__name__)
 
-__all__ = ['save_goal', 'get_active_goals', 'complete_goal']
+GOAL_TYPES = ['hardlopen', 'kracht', 'cardio', 'gewicht', 'flexibiliteit', 'herstel']
+
+__all__ = ['GOAL_TYPES', 'save_goal', 'get_active_goals', 'complete_goal']
 
 async def save_goal(data: dict) -> bool:
     try:
