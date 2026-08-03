@@ -7,5 +7,6 @@ httpx
 pyyaml
 alembic
 sqlalchemy
+qdrant-client
 asyncpg
 psycopg2-binary
