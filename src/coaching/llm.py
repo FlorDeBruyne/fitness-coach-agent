@@ -61,6 +61,7 @@ async def get_coaching_response(
 
     response = await client.chat.completions.create(
         model=str(os.getenv("MODEL")),
+        temperature=0.4,
         messages=[
             {"role":"system", "content": system_prompt},
             {"role": "user", "content": message}
