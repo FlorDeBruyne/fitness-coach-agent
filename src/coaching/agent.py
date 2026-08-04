@@ -38,6 +38,7 @@ async def evening_update():
         await send_proactive_message(llm_response)
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     if len(sys.argv) > 1 and sys.argv[1] == "evening":
         asyncio.run(evening_update())
     else:

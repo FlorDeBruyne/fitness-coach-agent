@@ -4,6 +4,7 @@ import logging
 import asyncio
 from typing import Optional
 from pathlib import Path
+from datetime import datetime
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
 
@@ -31,7 +32,7 @@ def _normalize_fitness_level(level: Optional[str]) -> Optional[str]:
     return FITNESS_LEVEL_MAP.get(level.strip().lower(), level)
 
 async def _build_context(user: Optional[User], health_context: Optional[dict], message: Optional[str]) -> dict:
-    context = {}
+    context = {"date": datetime.now().date().isoformat()}
 
     if health_context:
         context["health_context"] = health_context
