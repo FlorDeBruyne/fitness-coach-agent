@@ -7,11 +7,11 @@ from src.coaching.extraction import parse_goal_value, parse_goal_intro, parse_in
 from src.users.onboarding import check_onboarding, save_onboarding
 from src.users.goals import save_goal, get_active_goals, complete_goal, GOAL_TYPES
 from src.users.injuries import save_injury, get_active_injuries, resolve_injury, SEVERITY_LEVELS
-from src.users.crud import get_record_by_telegram
+from src.users.crud import get_record_by_telegram, update_record
 from src.users.models import User
 from src.memory.store import save_memory
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
+from telegram import KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
     Application,
     ApplicationBuilder,
@@ -30,6 +30,7 @@ GOAL_INTRO, GOAL_TYPE_FALLBACK, GOAL_TARGET_CONFIRM, GOAL_TARGET_VALUE, GOAL_UNI
 COMPLETE_SELECT = 11
 INJURY_INTRO, INJURY_AREA_FALLBACK, INJURY_SEVERITY_FALLBACK, INJURY_STARTED_FALLBACK = range(12, 16)
 RESOLVE_SELECT = 16
+LOCATION_RECEIVE = 17
 
 HISTORY_TURNS = 5
 
@@ -504,6 +505,41 @@ async def resolve_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return ConversationHandler.END
 
+async def location_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Deel je huidige locatie zodat ik het weer kan meenemen in mijn advies. "
+        "Stuur /cancel om te stoppen.",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton(text="📍 Deel locatie", request_location=True)]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+    )
+    return LOCATION_RECEIVE
+
+async def location_wrong_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Gebruik de knop hieronder om je locatie te delen, of stuur /cancel.",
+        reply_markup=ReplyKeyboardMarkup(
+            [[KeyboardButton(text="📍 Deel locatie", request_location=True)]],
+            one_time_keyboard=True,
+            resize_keyboard=True
+        )
+    )
+    return LOCATION_RECEIVE
+
+async def location_receive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    location = update.message.location
+    chat_id = update.effective_chat.id
+    user = await get_record_by_telegram(User, str(chat_id))
+
+    if user and await update_record(User, user.id, {"latitude": location.latitude, "longitude": location.longitude}):
+        await update.message.reply_text("Locatie opgeslagen, dankje!", reply_markup=ReplyKeyboardRemove())
+    else:
+        await update.message.reply_text("Er ging iets mis bij het opslaan.", reply_markup=ReplyKeyboardRemove())
+
+    return ConversationHandler.END
+
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     history = context.user_data.setdefault("history", [])
     try:
@@ -602,11 +638,23 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    location_conv_handler = ConversationHandler(
+        entry_points=[CommandHandler("location", location_start)],
+        states={
+            LOCATION_RECEIVE: [
+                MessageHandler(filters.LOCATION, location_receive),
+                MessageHandler(filters.TEXT & ~filters.COMMAND, location_wrong_input),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
     application.add_handler(conv_handler)
     application.add_handler(goals_conv_handler)
     application.add_handler(complete_conv_handler)
     application.add_handler(injuries_conv_handler)
     application.add_handler(resolve_conv_handler)
+    application.add_handler(location_conv_handler)
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, send_message))
 
     application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)

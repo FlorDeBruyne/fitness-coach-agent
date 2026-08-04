@@ -33,6 +33,8 @@ class User(Base):
     telegram_chat_id: Mapped[str] = mapped_column(String(100))
     preferred_language: Mapped[str] = mapped_column(String(10), default="nl")
     timezone: Mapped[str] = mapped_column(String(50), default="Europe/Brussels")
+    latitude: Mapped[float] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float] = mapped_column(Float, nullable=True)
     onboarding_completed: Mapped[bool] = mapped_column(Boolean)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
