@@ -54,7 +54,8 @@ async def get_coaching_response(
     message: str | None,
     client: AsyncOpenAI,
     user: Optional[User] = None,
-    health_context: Optional[dict] = None
+    health_context: Optional[dict] = None,
+    history: Optional[list[dict]] = None
 ):
     with open(file=Path("prompts/fitness_coach_nl.md"), mode="r") as file:
         system_prompt = file.read()
@@ -69,13 +70,19 @@ async def get_coaching_response(
         temperature=0.4,
         messages=[
             {"role":"system", "content": system_prompt},
+            *(history or []),
             {"role": "user", "content": message}
         ]
     )
 
     return response.choices[0].message.content
 
-async def main(message: str | None, user: Optional[User] = None, health_context: Optional[dict] = None):
+async def main(
+    message: str | None,
+    user: Optional[User] = None,
+    health_context: Optional[dict] = None,
+    history: Optional[list[dict]] = None
+):
     openai = AsyncOpenAI(
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url=os.getenv("OPENAI_API_URL")
@@ -84,7 +91,8 @@ async def main(message: str | None, user: Optional[User] = None, health_context:
     result = await get_coaching_response(message=message,
                                          client=openai,
                                          user=user,
-                                         health_context=health_context)
+                                         health_context=health_context,
+                                         history=history)
     return result
 
 if __name__ == "__main__":

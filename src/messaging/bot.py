@@ -31,6 +31,8 @@ COMPLETE_SELECT = 11
 INJURY_INTRO, INJURY_AREA_FALLBACK, INJURY_SEVERITY_FALLBACK, INJURY_STARTED_FALLBACK = range(12, 16)
 RESOLVE_SELECT = 16
 
+HISTORY_TURNS = 5
+
 __all__ = ['main', 'send_proactive_message']
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -503,15 +505,20 @@ async def resolve_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    history = context.user_data.setdefault("history", [])
     try:
         chat_id = update.effective_chat.id
         user = await get_record_by_telegram(User, str(chat_id))
         logger.info("Aquired User: %s", user if user else "None")
-        coach_result = await llm_main(message=update.message.text, user=user)
+        coach_result = await llm_main(message=update.message.text, user=user, history=history)
         await context.bot.send_message(chat_id=chat_id, text=coach_result)
     except Exception as e:
         logger.error("Failed to send message: %s", e)
         return
+
+    history.append({"role": "user", "content": update.message.text})
+    history.append({"role": "assistant", "content": coach_result})
+    del history[:-HISTORY_TURNS * 2]
 
     if user:
         try:
