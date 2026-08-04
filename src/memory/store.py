@@ -14,7 +14,9 @@ COLLECTION_NAME = "memories"
 VECTOR_SIZE = 768
 EMBEDDING_MODEL = "nomic-embed-text"
 
-__all__ = ['ensure_collection', 'save_memory', 'search_memory']
+MEMORY_CATEGORIES = ['voorkeur', 'routine', 'levensgebeurtenis', 'gemoedstoestand', 'feedback_op_coach']
+
+__all__ = ['MEMORY_CATEGORIES', 'ensure_collection', 'save_memory', 'search_memory']
 
 def _qdrant_client() -> AsyncQdrantClient:
     return AsyncQdrantClient(

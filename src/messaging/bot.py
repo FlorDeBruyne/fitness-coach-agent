@@ -3,12 +3,13 @@ from datetime import datetime
 from dotenv import load_dotenv
 import logging
 from src.coaching.llm import main as llm_main
-from src.coaching.extraction import parse_goal_value, parse_goal_intro, parse_injury_intro
+from src.coaching.extraction import parse_goal_value, parse_goal_intro, parse_injury_intro, parse_memory
 from src.users.onboarding import check_onboarding, save_onboarding
 from src.users.goals import save_goal, get_active_goals, complete_goal, GOAL_TYPES
 from src.users.injuries import save_injury, get_active_injuries, resolve_injury, SEVERITY_LEVELS
 from src.users.crud import get_record_by_telegram
 from src.users.models import User
+from src.memory.store import save_memory
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update, Bot
 from telegram.ext import (
@@ -510,6 +511,15 @@ async def send_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(chat_id=chat_id, text=coach_result)
     except Exception as e:
         logger.error("Failed to send message: %s", e)
+        return
+
+    if user:
+        try:
+            memory = await parse_memory(update.message.text)
+            if memory["category"] and memory["text"]:
+                await save_memory(user_id=str(user.id), text=memory["text"], category=memory["category"])
+        except Exception as e:
+            logger.error("Failed to extract memory: %s", e)
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancels and ends the conversation."""

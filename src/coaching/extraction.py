@@ -8,11 +8,12 @@ from openai import AsyncOpenAI
 
 from src.users.goals import GOAL_TYPES
 from src.users.injuries import SEVERITY_LEVELS
+from src.memory.store import MEMORY_CATEGORIES
 
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-__all__ = ['get_structured_response', 'parse_goal_value', 'parse_goal_intro', 'parse_injury_intro']
+__all__ = ['get_structured_response', 'parse_goal_value', 'parse_goal_intro', 'parse_injury_intro', 'parse_memory']
 
 async def get_structured_response(prompt_path: str, message: str) -> dict:
     with open(file=Path(prompt_path), mode="r") as file:
@@ -92,3 +93,15 @@ async def parse_injury_intro(text: str) -> dict:
         "severity": severity if severity in SEVERITY_LEVELS else None,
         "started_at": started_at if isinstance(started_at, str) else None
     }
+
+async def parse_memory(text: str) -> dict:
+    data = await get_structured_response("prompts/memory_extraction.md", text)
+
+    category = data.get("category")
+    memory_text = data.get("text")
+    category = category if category in MEMORY_CATEGORIES else None
+    memory_text = str(memory_text).strip() if isinstance(memory_text, str) and memory_text.strip() else None
+    if category is None or memory_text is None:
+        category, memory_text = None, None
+
+    return {"category": category, "text": memory_text}
