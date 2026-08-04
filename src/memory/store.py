@@ -72,6 +72,7 @@ async def save_memory(user_id: str, text: str, category: str) -> bool:
         return False
 
 async def search_memory(user_id: str, query: str, top_k: int = 3) -> list[dict]:
+    await ensure_collection()
     vector = await _embed(query)
     client = _qdrant_client()
 

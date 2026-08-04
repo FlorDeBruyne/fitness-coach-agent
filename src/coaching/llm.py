@@ -10,6 +10,7 @@ from openai import AsyncOpenAI
 from src.users.models import User
 from src.users.goals import get_active_goals, serialize_goal
 from src.users.injuries import get_active_injuries, serialize_injury
+from src.memory.store import search_memory
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ def _normalize_fitness_level(level: Optional[str]) -> Optional[str]:
         return None
     return FITNESS_LEVEL_MAP.get(level.strip().lower(), level)
 
-async def _build_context(user: Optional[User], health_context: Optional[dict]) -> dict:
+async def _build_context(user: Optional[User], health_context: Optional[dict], message: Optional[str]) -> dict:
     context = {}
 
     if health_context:
@@ -42,6 +43,9 @@ async def _build_context(user: Optional[User], health_context: Optional[dict]) -
         context["goals"] = [serialize_goal(goal) for goal in active_goals]
         active_injuries = await get_active_injuries(user.id)
         context["injuries"] = [serialize_injury(injury) for injury in active_injuries]
+        if message:
+            memories = await search_memory(user_id=str(user.id), query=message, top_k=3)
+            context["memories"] = [{"category": m["category"], "text": m["text"]} for m in memories]
 
     return context
 
@@ -54,7 +58,7 @@ async def get_coaching_response(
     with open(file=Path("prompts/fitness_coach_nl.md"), mode="r") as file:
         system_prompt = file.read()
 
-    context = await _build_context(user, health_context)
+    context = await _build_context(user, health_context, message)
     if context:
         context_str = json.dumps(context, indent=2)
         message = f"{context_str}\n{message}"
